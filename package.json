@@ -4,11 +4,13 @@
   "description": "Pings the Qlik Sense Proxy",
   "scripts": {
     "build": "babel src -d ./lib",
-    "build:watch": "babel src --out-dir ./lib -w"
+    "build:watch": "babel src --out-dir ./lib -w",
+    "start": "node lib/index.js"
   },
   "files": [
     "dist/"
   ],
+  "main": "lib/index.js",
   "author": "Alexander Karlsson <akl@qlik.com>",
   "license": "ISC",
   "dependencies": {

@@ -1,10 +1,9 @@
 import WebSocket from 'ws';
-import ping from './productversion';
 import restartService from './restart-service';
 
-const hostname = 'ws://localhost:4848/app/';
+const hostname = 'wss://branch.qlik.com/anon/app/9573041f-0c45-4cb6-8166-64c2aac3c05d';
 const originhost = 'http://branch.qlik.com';
-const beatInterval = 30000;
+const beatInterval = 60000; // 1 min
 
 function beat() {
     setTimeout(() => {
@@ -13,39 +12,37 @@ function beat() {
             rejectUnauthorized: false
         });
         
-        socket.on('open', () => {
-            // Socket open, send single frame and await response.
-            socket.send( JSON.stringify(ping) );
-        });
+        // Socket opened, await first notification frame;
+        socket.on('open', null);
         
         socket.on('message', (ev) => {
             const data = JSON.parse(ev);
             
-            // First frame will be a notification, ignore it. 
-            if( !data.result ) {
-                return;
+            // Notification frame - we are connected. 
+            if( data.method === 'OnAuthenticationInformation' ) {
+                socket.terminate();
+                beat();
             };
             
-            // QIX responded on ping
-            if( data.id === 1 ) {
+            if( data.error ) {
                 socket.terminate();
-                
-                // Continue beating            
-                setTimeout(beat, beatInterval);
+                beat();
             };
             
         });
         
         // Connection Error
         socket.on('error', (error) => {            
-            restartService('Spooler', (err, stdout) => {
-                if( err ) {
-                    // Could not restart service, handle this later.
-                }
+            restartService('QlikSenseProxyService', (err, stdout) => {
+                // Could not restart service, handle this later.
+                if(err) {
+                    console.log(err);
+                };
                 // Service restarted, beat again.
                 beat();
             });
         });
         
     }, beatInterval)         
-}();
+};
+beat();
