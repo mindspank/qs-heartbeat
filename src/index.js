@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import restartService from './restart-service';
+import ping from './productversion';
 
 const hostname = 'wss://branch.qlik.com/anon/app/9573041f-0c45-4cb6-8166-64c2aac3c05d';
 const originhost = 'http://branch.qlik.com';
@@ -13,18 +14,22 @@ function beat() {
         });
         
         // Socket opened, await first notification frame;
-        socket.on('open', null);
+        socket.on('open', () => {
+            socket.send(JSON.stringify(ping));
+        });
         
         socket.on('message', (ev) => {
             const data = JSON.parse(ev);
             
-            // Notification frame - we are connected. 
-            if( data.method === 'OnAuthenticationInformation' ) {
+            // Responded on ping. 
+            if( data.id === 1 ) {
                 socket.terminate();
                 beat();
             };
             
-            if( data.error ) {
+            // Proxy is up and running but either QIX or QRS is down.
+            // Keep beating to see if they recover.
+            if( data.params && data.params.severity ) {
                 socket.terminate();
                 beat();
             };
@@ -32,7 +37,7 @@ function beat() {
         });
         
         // Connection Error
-        socket.on('error', (error) => {            
+        socket.on('error', (error) => { 
             restartService('QlikSenseProxyService', (err, stdout) => {
                 // Could not restart service, handle this later.
                 if(err) {
